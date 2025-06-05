@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信用卡格式转换工具</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        .highlight {
+            background-color: rgba(99, 102, 241, 0.1);
+            border-left: 3px solid #4f46e5;
+            padding: 0.5rem 1rem;
+            border-radius: 0 4px 4px 0;
+        }
+        .error-message {
+            background-color: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            padding: 0.5rem 1rem;
+            border-radius: 0 4px 4px 0;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-8 px-4">
+    <div class="max-w-3xl mx-auto">
+        <div class="glassmorphism p-6 mb-8 card-hover">
+            <h1 class="text-2xl font-bold text-gray-800 mb-2 flex items-center">
+                <i class="fas fa-credit-card mr-3 text-indigo-600"></i>
+                信用卡格式转换工具
+            </h1>
+            <p class="text-gray-600">将多段JSON格式的信用卡信息转换为标准格式</p>
+        </div>
+
+        <div class="glassmorphism p-6 mb-8 card-hover">
+            <div class="flex items-center mb-4">
+                <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mr-3">
+                    <i class="fas fa-keyboard"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800">输入区域</h2>
+            </div>
+            <textarea id="inputText" class="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" rows="8" placeholder='请输入JSON格式的信用卡信息，例如：
+{"expirationDate": "203005", "cvv": "822", "cardNumber": "5316140477425781"}{"expirationDate": "203005", "cvv": "123", "cardNumber": "4111111111111111"}'></textarea>
+            <div class="flex justify-end mt-4">
+                <button id="convertBtn" class="btn-primary px-6 py-2 rounded-lg font-medium">
+                    <i class="fas fa-exchange-alt mr-2"></i>转换格式
+                </button>
+            </div>
+        </div>
+
+        <div class="glassmorphism p-6 card-hover">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 mr-3">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold text-gray-800">输出结果</h2>
+                </div>
+                <button id="copyAllBtn" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    <i class="fas fa-copy mr-2"></i>一键复制
+                </button>
+            </div>
+            <div id="outputArea" class="w-full p-4 bg-gray-50 rounded-lg min-h-40">
+                <p class="text-gray-400 text-center py-8">转换结果将显示在这里</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const convertBtn = document.getElementById('convertBtn');
+            const copyAllBtn = document.getElementById('copyAllBtn');
+            const inputText = document.getElementById('inputText');
+            const outputArea = document.getElementById('outputArea');
+            
+            // 转换格式
+            convertBtn.addEventListener('click', function() {
+                try {
+                    const input = inputText.value.trim();
+                    if (!input) {
+                        outputArea.innerHTML = '<p class="text-red-500 text-center py-8">请输入要转换的内容</p>';
+                        return;
+                    }
+                    
+                    // 处理多段JSON数据
+                    let output = '';
+                    let hasError = false;
+                    let currentPos = 0;
+                    
+                    while (currentPos < input.length) {
+                        try {
+                            // 查找下一个JSON对象开始位置
+                            const nextBrace = input.indexOf('{', currentPos);
+                            if (nextBrace === -1) break;
+                            
+                            // 查找JSON对象结束位置
+                            let endBrace = input.indexOf('}', nextBrace);
+                            if (endBrace === -1) {
+                                throw new Error('不完整的JSON格式');
+                            }
+                            
+                            // 提取JSON字符串
+                            const jsonStr = input.substring(nextBrace, endBrace + 1);
+                            const cardData = JSON.parse(jsonStr);
+                            
+                            if (!cardData.cardNumber || !cardData.expirationDate || !cardData.cvv) {
+                                throw new Error('缺少必要字段');
+                            }
+                            
+                            // 格式化日期 203005 -> 05/30
+                            const expDate = cardData.expirationDate;
+                            const formattedDate = `${expDate.substring(4)}/${expDate.substring(2, 4)}`;
+                            
+                            // 构建输出行
+                            output += `${cardData.cardNumber} ${formattedDate} ${cardData.cvv}\n`;
+                            
+                            currentPos = endBrace + 1;
+                        } catch (e) {
+                            output += `<div class="error-message mb-2">错误: ${e.message}</div>`;
+                            hasError = true;
+                            currentPos++;
+                        }
+                    }
+                    
+                    // 显示结果
+                    if (output.trim()) {
+                        if (hasError) {
+                            outputArea.innerHTML = output;
+                        } else {
+                            outputArea.innerHTML = `<pre class="bg-white p-4 rounded-lg overflow-auto">${output}</pre>`;
+                        }
+                    } else {
+                        outputArea.innerHTML = '<p class="text-red-500 text-center py-8">未找到有效的信用卡信息</p>';
+                    }
+                } catch (e) {
+                    outputArea.innerHTML = `<p class="text-red-500 text-center py-8">转换出错: ${e.message}</p>`;
+                }
+            });
+            
+            // 一键复制
+            copyAllBtn.addEventListener('click', function() {
+                const outputText = outputArea.querySelector('pre')?.textContent;
+                if (!outputText) {
+                    alert('没有可复制的内容');
+                    return;
+                }
+                
+                navigator.clipboard.writeText(outputText)
+                    .then(() => {
+                        const originalText = copyAllBtn.innerHTML;
+                        copyAllBtn.innerHTML = '<i class="fas fa-check mr-2"></i>已复制';
+                        setTimeout(() => {
+                            copyAllBtn.innerHTML = originalText;
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('复制失败:', err);
+                        alert('复制失败，请手动选择文本复制');
+                    });
+            });
+        });
+    </script>
+</body>
+</html>
